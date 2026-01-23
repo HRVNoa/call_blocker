@@ -2,11 +2,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'storage_service.dart';
-import 'audio_service.dart';
 
 class CallService {
   final StorageService _storageService = StorageService();
-  final AudioService _audioService = AudioService();
   
   // MethodChannel for native Android communication
   static const platform = MethodChannel('com.callblocker.call_blocker/call_screening');
@@ -90,8 +88,6 @@ class CallService {
   Future<Map<Permission, PermissionStatus>> requestPermissions() async {
     return await [
       Permission.phone,
-      Permission.microphone,
-      Permission.storage,
     ].request();
   }
 
@@ -104,15 +100,10 @@ class CallService {
   // Check if all permissions are granted
   Future<bool> hasAllPermissions() async {
     final phoneStatus = await Permission.phone.status;
-    final micStatus = await Permission.microphone.status;
-    
-    // Storage permission is optional on modern Android
-    // Only require phone permission as mandatory
-    return (phoneStatus.isGranted || phoneStatus.isLimited) && 
-           (micStatus.isGranted || micStatus.isLimited || micStatus.isDenied);
+    return phoneStatus.isGranted || phoneStatus.isLimited;
   }
 
   void dispose() {
-    _audioService.dispose();
+    // Nothing to dispose anymore
   }
 }

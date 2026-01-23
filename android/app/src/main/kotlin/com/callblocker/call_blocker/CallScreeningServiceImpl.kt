@@ -16,6 +16,8 @@ class CallScreeningServiceImpl : CallScreeningService() {
         private const val KEY_SERVICE_ENABLED = "flutter.app_settings"
         private const val KEY_PREFIXES = "flutter.blocked_prefixes"
     }
+    
+    private var lastMatchedPrefix: String = ""
 
     override fun onScreenCall(callDetails: Call.Details) {
         Log.d(TAG, "onScreenCall triggered")
@@ -55,8 +57,8 @@ class CallScreeningServiceImpl : CallScreeningService() {
             respondToCall(callDetails, response)
             Log.i(TAG, "✓ Call blocked from: $phoneNumber")
             
-            // Increment blocked calls counter
-            incrementBlockedCallsCounter()
+            // Increment blocked calls counter and save to history
+            incrementBlockedCallsCounter(phoneNumber, cleanNumber)
         } else {
             // Allow the call
             respondToCall(callDetails, buildResponse(false))
@@ -116,6 +118,8 @@ class CallScreeningServiceImpl : CallScreeningService() {
                 val cleanPrefix = prefix.replace(Regex("[^\\d]"), "")
                 if (cleanNumber.startsWith(cleanPrefix)) {
                     Log.i(TAG, "✓ Number matches blocked prefix: $cleanPrefix")
+                    // Store matched prefix for history
+                    lastMatchedPrefix = cleanPrefix
                     return true
                 }
             }
@@ -160,12 +164,34 @@ class CallScreeningServiceImpl : CallScreeningService() {
         }
     }
     
-    private fun incrementBlockedCallsCounter() {
+    private fun incrementBlockedCallsCounter(phoneNumber: String, cleanNumber: String) {
         try {
             val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val currentCount = prefs.getInt("flutter.blocked_calls_count", 0)
             prefs.edit().putInt("flutter.blocked_calls_count", currentCount + 1).apply()
             Log.d(TAG, "Blocked calls count: ${currentCount + 1}")
+            
+            // Save to history
+            val historyJson = prefs.getString("flutter.blocked_calls_history", "[]")
+            val history = org.json.JSONArray(historyJson ?: "[]")
+            
+            // Create new call entry
+            val callEntry = org.json.JSONObject()
+            callEntry.put("phoneNumber", cleanNumber)
+            callEntry.put("timestamp", java.time.Instant.now().toString())
+            callEntry.put("matchedPrefix", lastMatchedPrefix)
+            
+            // Add at the beginning
+            val newHistory = org.json.JSONArray()
+            newHistory.put(callEntry)
+            for (i in 0 until history.length()) {
+                if (i < 99) { // Keep only last 100
+                    newHistory.put(history.get(i))
+                }
+            }
+            
+            prefs.edit().putString("flutter.blocked_calls_history", newHistory.toString()).apply()
+            Log.d(TAG, "Saved call to history: $cleanNumber with prefix $lastMatchedPrefix")
         } catch (e: Exception) {
             Log.e(TAG, "Error incrementing blocked calls counter", e)
         }

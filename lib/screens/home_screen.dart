@@ -4,7 +4,7 @@ import '../models/app_settings.dart';
 import '../services/storage_service.dart';
 import '../services/call_service.dart';
 import 'prefix_manager_screen.dart';
-import 'audio_selector_screen.dart';
+import 'statistics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -147,16 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _changeBlockMode(BlockMode? mode) async {
-    if (mode == null) return;
-    
-    final newSettings = _settings.copyWith(blockMode: mode);
-    await _storageService.saveSettings(newSettings);
-    setState(() {
-      _settings = newSettings;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final enabledPrefixes = _prefixes.where((p) => p.isEnabled).length;
@@ -259,104 +249,6 @@ class _HomeScreenState extends State<HomeScreen> {
           
           const SizedBox(height: 16),
           
-          // Block Mode Selection
-          Card(
-            elevation: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Mode de blocage',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  RadioListTile<BlockMode>(
-                    title: const Text('Blocage direct'),
-                    subtitle: const Text('Bloquer les appels sans répondre'),
-                    value: BlockMode.directBlock,
-                    groupValue: _settings.blockMode,
-                    onChanged: _changeBlockMode,
-                  ),
-                  RadioListTile<BlockMode>(
-                    title: const Text('Message vocal'),
-                    subtitle: const Text('Répondre avec un message puis raccrocher'),
-                    value: BlockMode.voiceMessage,
-                    groupValue: _settings.blockMode,
-                    onChanged: _changeBlockMode,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Voice Message Card (only show if voice message mode)
-          if (_settings.blockMode == BlockMode.voiceMessage)
-            Card(
-              elevation: 4,
-              child: InkWell(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AudioSelectorScreen(),
-                    ),
-                  );
-                  _loadData();
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _settings.audioFilePath != null 
-                            ? Icons.mic 
-                            : Icons.mic_none,
-                        size: 40,
-                        color: _settings.audioFilePath != null 
-                            ? Colors.blue 
-                            : Colors.grey,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Message vocal',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _settings.audioFilePath != null 
-                                  ? 'Message configuré' 
-                                  : 'Aucun message sélectionné',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          
-          const SizedBox(height: 16),
-          
           // Statistics Card
           if (_settings.isServiceEnabled && _blockedCallsCount > 0)
             Card(
@@ -397,6 +289,62 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+          
+          if (_settings.isServiceEnabled && _blockedCallsCount > 0)
+            const SizedBox(height: 16),
+          
+          // View Statistics Button
+          if (_settings.isServiceEnabled && _blockedCallsCount > 0)
+            Card(
+              elevation: 4,
+              child: InkWell(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const StatisticsScreen(),
+                    ),
+                  );
+                  _loadData();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.analytics,
+                        size: 40,
+                        color: Colors.blue[700],
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Voir les statistiques',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Historique détaillé et analyse',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
                 ),
               ),
             ),

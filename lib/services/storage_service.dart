@@ -100,6 +100,68 @@ class StorageService {
     return prefs.getInt('blocked_calls_count') ?? 0;
   }
 
+  // Save a blocked call to history
+  Future<void> saveBlockedCall(String phoneNumber, String matchedPrefix) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Get existing history
+    final historyJson = prefs.getString('blocked_calls_history') ?? '[]';
+    final List<dynamic> history = jsonDecode(historyJson);
+    
+    // Add new blocked call
+    final blockedCall = {
+      'phoneNumber': phoneNumber,
+      'timestamp': DateTime.now().toIso8601String(),
+      'matchedPrefix': matchedPrefix,
+    };
+    
+    history.insert(0, blockedCall); // Add at the beginning
+    
+    // Keep only last 100 calls to avoid excessive storage
+    if (history.length > 100) {
+      history.removeRange(100, history.length);
+    }
+    
+    // Save back
+    await prefs.setString('blocked_calls_history', jsonEncode(history));
+  }
+
+  // Get blocked calls history
+  Future<List<Map<String, dynamic>>> getBlockedCallsHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final historyJson = prefs.getString('blocked_calls_history') ?? '[]';
+    final List<dynamic> history = jsonDecode(historyJson);
+    return history.cast<Map<String, dynamic>>();
+  }
+
+  // Get call frequency by number
+  Future<Map<String, int>> getCallFrequency() async {
+    final history = await getBlockedCallsHistory();
+    final Map<String, int> frequency = {};
+    
+    for (var call in history) {
+      final number = call['phoneNumber'] as String;
+      frequency[number] = (frequency[number] ?? 0) + 1;
+    }
+    
+    return frequency;
+  }
+
+  // Get most blocked numbers (top 10)
+  Future<List<MapEntry<String, int>>> getMostBlockedNumbers() async {
+    final frequency = await getCallFrequency();
+    final sorted = frequency.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.take(10).toList();
+  }
+
+  // Clear history
+  Future<void> clearBlockedCallsHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('blocked_calls_history');
+    await prefs.setInt('blocked_calls_count', 0);
+  }
+
   // Default French telemarketing prefixes
   List<BlockedPrefix> _getDefaultPrefixes() {
     return [
