@@ -293,11 +293,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           
-          if (_settings.isServiceEnabled && _blockedCallsCount > 0)
+          if (_settings.isServiceEnabled)
             const SizedBox(height: 16),
           
           // View Statistics Button
-          if (_settings.isServiceEnabled && _blockedCallsCount > 0)
+          if (_settings.isServiceEnabled)
             Card(
               elevation: 4,
               child: InkWell(
@@ -349,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           
-          if (_settings.isServiceEnabled && _blockedCallsCount > 0)
+          if (_settings.isServiceEnabled)
             const SizedBox(height: 16),
           
           // Prefixes Card

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/blocked_call.dart';
 import '../services/storage_service.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -275,7 +274,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                           ),
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
     );

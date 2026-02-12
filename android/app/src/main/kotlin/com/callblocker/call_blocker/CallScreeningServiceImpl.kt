@@ -178,7 +178,11 @@ class CallScreeningServiceImpl : CallScreeningService() {
             // Create new call entry
             val callEntry = org.json.JSONObject()
             callEntry.put("phoneNumber", cleanNumber)
-            callEntry.put("timestamp", java.time.Instant.now().toString())
+            // Use SimpleDateFormat for backward compatibility (works on all API levels)
+            val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+            callEntry.put("timestamp", timestamp)
             callEntry.put("matchedPrefix", lastMatchedPrefix)
             
             // Add at the beginning
