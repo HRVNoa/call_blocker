@@ -18,6 +18,19 @@ subprojects {
 subprojects {
     project.evaluationDependsOn(":app")
 }
+// Déclaration du plugin Android et Kotlin
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // AGP compatible avec Gradle 9.3.1
+        classpath("com.android.tools.build:gradle:8.1.0")
+        // Kotlin Gradle Plugin
+        classpath(kotlin("gradle-plugin", version = "1.9.10"))
+    }
+}
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)

@@ -26,6 +26,14 @@ flutter clean
 flutter pub get
 flutter build apk --release
 ```
+### 1. Construire l'AppBundle
+Marche pas avec la commande flutter
+```bash
+flutter clean
+flutter pub get
+cd android
+.\gradlew.bat bundleRelease
+```
 
 ### 2. Installer sur le téléphone
 
