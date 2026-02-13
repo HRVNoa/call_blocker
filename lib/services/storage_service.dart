@@ -13,8 +13,11 @@ class StorageService {
     final String? prefixesJson = prefs.getString(_prefixesKey);
     
     if (prefixesJson == null) {
-      // Return default French telemarketing prefixes
-      return _getDefaultPrefixes();
+      // Return default French telemarketing prefixes AND save them to storage
+      // so the native Android service can read them
+      final defaults = _getDefaultPrefixes();
+      await saveBlockedPrefixes(defaults);
+      return defaults;
     }
     
     final List<dynamic> decoded = jsonDecode(prefixesJson);
@@ -126,20 +129,45 @@ class StorageService {
     await prefs.setString('blocked_calls_history', jsonEncode(history));
   }
 
-  // Get blocked calls history
+  // Helper to normalize phone numbers to national format (0...)
+  String _normalizePhoneNumber(String phoneNumber) {
+    var cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+    
+    // +33... or 0033... -> 0...
+    if (cleanNumber.startsWith('33') && cleanNumber.length >= 11) {
+      cleanNumber = '0${cleanNumber.substring(2)}';
+    } else if (cleanNumber.startsWith('0033') && cleanNumber.length >= 13) {
+      cleanNumber = '0${cleanNumber.substring(4)}';
+    }
+    
+    return cleanNumber;
+  }
+
+  // Get blocked calls history with normalized numbers
   Future<List<Map<String, dynamic>>> getBlockedCallsHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final historyJson = prefs.getString('blocked_calls_history') ?? '[]';
     final List<dynamic> history = jsonDecode(historyJson);
-    return history.cast<Map<String, dynamic>>();
+    
+    return history.map((call) {
+      final map = call as Map<String, dynamic>;
+      // Normalize the number for consistent display
+      final number = map['phoneNumber'] as String;
+      return {
+        ...map,
+        'originalPhoneNumber': number, // Keep original just in case
+        'phoneNumber': _normalizePhoneNumber(number),
+      };
+    }).toList().cast<Map<String, dynamic>>();
   }
 
-  // Get call frequency by number
+  // Get call frequency by normalized number
   Future<Map<String, int>> getCallFrequency() async {
     final history = await getBlockedCallsHistory();
     final Map<String, int> frequency = {};
     
     for (var call in history) {
+      // getBlockedCallsHistory already returns normalized 'phoneNumber'
       final number = call['phoneNumber'] as String;
       frequency[number] = (frequency[number] ?? 0) + 1;
     }

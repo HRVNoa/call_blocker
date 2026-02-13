@@ -6,6 +6,8 @@ import android.telecom.Call
 import android.telecom.CallScreeningService
 import androidx.annotation.RequiresApi
 import android.util.Log
+import org.json.JSONArray
+import org.json.JSONObject
 
 @RequiresApi(Build.VERSION_CODES.N)
 class CallScreeningServiceImpl : CallScreeningService() {
@@ -100,31 +102,46 @@ class CallScreeningServiceImpl : CallScreeningService() {
                 return false
             }
             
-            
             // Clean the phone number (remove non-digits)
-            var cleanNumber = phoneNumber.replace(Regex("[^\\d]"), "")
+            val cleanNumber = phoneNumber.replace(Regex("[^\\d]"), "")
             Log.d(TAG, "Clean number: $cleanNumber")
             
-            // Convert international format (+33...) to national format (0...)
-            // +33661123456 -> 33661123456 -> 0661123456
+            // Generate normalized versions for matching
+            val normalizedNumbers = mutableListOf<String>()
+            normalizedNumbers.add(cleanNumber) // Original clean (e.g. 33612345678 or 0612345678)
+            
+            // If international format (starts with 33 for France), create 0-prefixed version
             if (cleanNumber.startsWith("33") && cleanNumber.length >= 11) {
-                cleanNumber = "0${cleanNumber.substring(2)}"
-                Log.d(TAG, "Converted to national format: $cleanNumber")
+                // 33612345678 -> 0612345678
+                val nat = "0${cleanNumber.substring(2)}"
+                normalizedNumbers.add(nat)
+                Log.d(TAG, "Added national format from Intl: $nat")
+            }
+            
+            // If national format (starts with 0), create 33-prefixed version
+            if (cleanNumber.startsWith("0") && cleanNumber.length >= 10) {
+                 // 0612345678 -> 33612345678
+                 val intl = "33${cleanNumber.substring(1)}"
+                 normalizedNumbers.add(intl)
+                 Log.d(TAG, "Added Intl format from national: $intl")
             }
             
             // Parse and check prefixes
             val blockedPrefixes = parsePrefixes(prefixesJson)
             for (prefix in blockedPrefixes) {
                 val cleanPrefix = prefix.replace(Regex("[^\\d]"), "")
-                if (cleanNumber.startsWith(cleanPrefix)) {
-                    Log.i(TAG, "✓ Number matches blocked prefix: $cleanPrefix")
-                    // Store matched prefix for history
-                    lastMatchedPrefix = cleanPrefix
-                    return true
+                
+                // Check against all normalized versions of the number
+                for (normNumber in normalizedNumbers) {
+                     if (normNumber.startsWith(cleanPrefix)) {
+                        Log.i(TAG, "✓ Number $normNumber matches blocked prefix: $cleanPrefix")
+                        // Store matched prefix for history
+                        lastMatchedPrefix = cleanPrefix
+                        return true
+                     }
                 }
             }
 
-            
             return false
         } catch (e: Exception) {
             Log.e(TAG, "Error checking if number should be blocked", e)
@@ -134,8 +151,8 @@ class CallScreeningServiceImpl : CallScreeningService() {
     
     private fun parseServiceEnabled(json: String): Boolean {
         return try {
-            // Simple JSON parsing for isServiceEnabled
-            json.contains("\"isServiceEnabled\":true")
+            val jsonObject = JSONObject(json)
+            jsonObject.optBoolean("isServiceEnabled", false)
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing service enabled", e)
             false
@@ -145,16 +162,17 @@ class CallScreeningServiceImpl : CallScreeningService() {
     private fun parsePrefixes(json: String): List<String> {
         return try {
             val prefixes = mutableListOf<String>()
+            val jsonArray = JSONArray(json)
             
-            // Simple JSON parsing - extract prefix values that are enabled
-            // Format: [{"prefix":"0162","description":"...","isEnabled":true},...]
-            val regex = Regex(""""prefix":"([^"]+)"[^}]*"isEnabled":true""")
-            val matches = regex.findAll(json)
-            
-            for (match in matches) {
-                val prefix = match.groupValues[1]
-                prefixes.add(prefix)
-                Log.d(TAG, "Found enabled prefix: $prefix")
+            for (i in 0 until jsonArray.length()) {
+                val item = jsonArray.getJSONObject(i)
+                if (item.optBoolean("isEnabled", true)) {
+                    val prefix = item.optString("prefix", "")
+                    if (prefix.isNotEmpty()) {
+                        prefixes.add(prefix)
+                        Log.d(TAG, "Found enabled prefix: $prefix")
+                    }
+                }
             }
             
             prefixes
@@ -176,8 +194,18 @@ class CallScreeningServiceImpl : CallScreeningService() {
             val history = org.json.JSONArray(historyJson ?: "[]")
             
             // Create new call entry
+            // Clean the phone number (remove non-digits)
+            var normalizedNumber = cleanNumber
+            
+            // Normalize to national format if needed
+            if (normalizedNumber.startsWith("33") && normalizedNumber.length >= 11) {
+                normalizedNumber = "0${normalizedNumber.substring(2)}"
+            } else if (normalizedNumber.startsWith("0033") && normalizedNumber.length >= 13) {
+                 normalizedNumber = "0${normalizedNumber.substring(4)}"
+            }
+
             val callEntry = org.json.JSONObject()
-            callEntry.put("phoneNumber", cleanNumber)
+            callEntry.put("phoneNumber", normalizedNumber)
             // Use SimpleDateFormat for backward compatibility (works on all API levels)
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
@@ -195,7 +223,7 @@ class CallScreeningServiceImpl : CallScreeningService() {
             }
             
             prefs.edit().putString("flutter.blocked_calls_history", newHistory.toString()).apply()
-            Log.d(TAG, "Saved call to history: $cleanNumber with prefix $lastMatchedPrefix")
+            Log.d(TAG, "Saved call to history: $normalizedNumber with prefix $lastMatchedPrefix")
         } catch (e: Exception) {
             Log.e(TAG, "Error incrementing blocked calls counter", e)
         }
