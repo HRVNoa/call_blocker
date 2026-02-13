@@ -82,11 +82,11 @@ adb logcat | grep CallScreeningService
 
 ```
 D/CallScreeningService: onScreenCall triggered
-D/CallScreeningService: Incoming call from: +33661123456
+D/CallScreeningService: Incoming call from: +33270XXXXXX
 D/CallScreeningService: Clean number: 33661123456
-D/CallScreeningService: Converted to national format: 0661123456
-I/CallScreeningService: ✓ Number matches blocked prefix: 0661
-I/CallScreeningService: ✓ Call blocked from: +33661123456
+D/CallScreeningService: Converted to national format: 0270XXXXXX
+I/CallScreeningService: ✓ Number matches blocked prefix: 0270
+I/CallScreeningService: ✓ Call blocked from: +33270XXXXXX
 D/CallScreeningService: Blocked calls count: 1
 ```
 
